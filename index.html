@@ -163,9 +163,136 @@
       padding-top: clamp(1.5rem, 4vh, 3rem);
       font-size: clamp(0.8rem, 0.5vw + 0.6rem, 1rem);
     }
+
+    /* ── Loading screen ─────────────────────────────────────────────
+       Holds the page behind an opaque cover until the Kiya webfont is
+       ready, so the handwriting never flashes a fallback (no FOUT).
+       First visit: the fox + dots show for a minimum beat. Once the
+       font is cached, the cover lifts at once and the art never shows. */
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.1rem;
+      background: var(--bg);
+      opacity: 1;
+      transition: opacity 0.55s ease;
+    }
+    #loader.is-done {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* The fox + dots only fade in when we actually wait on a download;
+       a cached font reveals instantly and never shows this art. */
+    #loader .loader-art {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #loader.is-active .loader-art { opacity: 1; }
+
+    #loader .fox {
+      font-size: clamp(3rem, 9vw, 4.75rem);
+      line-height: 1;
+      animation: foxBob 1.8s ease-in-out infinite;
+    }
+    #loader .dots {
+      display: flex;
+      gap: 0.55em;
+    }
+    #loader .dots span {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      background: var(--ink);
+      opacity: 0.25;
+      animation: dotPulse 1.2s ease-in-out infinite;
+    }
+    #loader .dots span:nth-child(2) { animation-delay: 0.15s; }
+    #loader .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes foxBob {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50%      { transform: translateY(-12px) rotate(3deg); }
+    }
+    @keyframes dotPulse {
+      0%, 100% { opacity: 0.2; transform: translateY(0); }
+      50%      { opacity: 0.85; transform: translateY(-3px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #loader { transition: none; }
+      #loader .fox { animation: none; }
+      #loader .dots span { animation: none; opacity: 0.5; }
+    }
   </style>
+
+  <noscript>
+    <!-- No JS = no reveal trigger; show the page (font-display: swap covers fallback). -->
+    <style>#loader { display: none !important; }</style>
+  </noscript>
 </head>
 <body>
+  <div id="loader" aria-hidden="true">
+    <div class="loader-art">
+      <div class="fox">🦊</div>
+      <div class="dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var loader = document.getElementById("loader");
+      if (!loader) return;
+
+      var KEY = "holeyfox:kiya-cached";
+      var MIN_LOADER = 3000; // first-visit floor: keep the loader up at least this long
+      var LATE_HINT = 600;   // if a "cached" font is actually slow, still show the art
+      var HARD_CAP = 8000;   // absolute failsafe so the loader can never get stuck
+
+      var cached = false;
+      try { cached = localStorage.getItem(KEY) === "1"; } catch (e) {}
+      function remember() { try { localStorage.setItem(KEY, "1"); } catch (e) {} }
+
+      var revealed = false;
+      function reveal() {
+        if (revealed) return;
+        revealed = true;
+        remember();
+        loader.classList.add("is-done");
+        window.setTimeout(function () {
+          if (loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 650);
+      }
+      function showArt() { loader.classList.add("is-active"); }
+
+      // Kick off (or observe) the font fetch. .catch() so a missing font can
+      // never trap the user — we still reveal with the fallback in that case.
+      var fontReady = (document.fonts && document.fonts.load)
+        ? document.fonts.load('1em "Kiya Handwrite"').catch(function () {})
+        : Promise.resolve();
+
+      window.setTimeout(reveal, HARD_CAP);
+
+      if (cached) {
+        // Seen before → font is in cache → no FOUT risk → suppress the loader.
+        var lateTimer = window.setTimeout(showArt, LATE_HINT); // unless cache was evicted
+        fontReady.then(function () { window.clearTimeout(lateTimer); reveal(); });
+      } else {
+        // First visit → show the branded loader for at least MIN_LOADER, and never
+        // reveal until the font is genuinely ready so the handwriting never flashes.
+        showArt();
+        Promise.all([
+          fontReady,
+          new Promise(function (res) { window.setTimeout(res, MIN_LOADER); })
+        ]).then(reveal);
+      }
+    })();
+  </script>
+
   <div class="page">
     <nav class="nav" aria-label="Social links">
       <a href="https://gist.holeyfox.co" target="_blank" rel="noopener noreferrer">Blog</a> <span class="sep">—</span> <a href="https://craftoverflow.substack.com" target="_blank" rel="noopener noreferrer">Substack</a> <span class="sep">—</span> <a href="https://github.com/vunderkind" target="_blank" rel="noopener noreferrer">GitHub</a> <span class="sep">—</span> <a href="https://threads.com/@thevunderkind" target="_blank" rel="noopener noreferrer">Threads</a> <span class="sep">—</span> <a href="https://de.linkedin.com/in/justinirabor/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
