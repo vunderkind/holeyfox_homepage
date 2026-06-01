@@ -174,60 +174,63 @@
       inset: 0;
       z-index: 9999;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1.1rem;
       background: var(--bg);
       opacity: 1;
-      transition: opacity 0.55s ease;
+      transition: opacity 0.6s ease, transform 0.6s ease;
     }
+    /* Sweet exit: the cover fades while gently swelling away. */
     #loader.is-done {
       opacity: 0;
+      transform: scale(1.04);
       pointer-events: none;
     }
 
-    /* The fox + dots only fade in when we actually wait on a download;
-       a cached font reveals instantly and never shows this art. */
+    /* The dots only fade in when we actually wait on a download;
+       a cached font reveals instantly and never shows them. */
     #loader .loader-art {
       opacity: 0;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.3s ease, transform 0.5s ease;
     }
     #loader.is-active .loader-art { opacity: 1; }
+    #loader.is-done .loader-art { opacity: 0; transform: scale(1.6); }
 
-    #loader .fox {
-      font-size: clamp(3rem, 9vw, 4.75rem);
-      line-height: 1;
-      animation: foxBob 1.8s ease-in-out infinite;
-    }
     #loader .dots {
       display: flex;
-      gap: 0.55em;
+      gap: 0.7em;
     }
     #loader .dots span {
-      width: 0.5rem;
-      height: 0.5rem;
+      width: 0.62rem;
+      height: 0.62rem;
       border-radius: 50%;
-      background: var(--ink);
-      opacity: 0.25;
-      animation: dotPulse 1.2s ease-in-out infinite;
+      background: var(--red);
+      animation: dotPulse 1.15s ease-in-out infinite;
     }
-    #loader .dots span:nth-child(2) { animation-delay: 0.15s; }
-    #loader .dots span:nth-child(3) { animation-delay: 0.3s; }
+    #loader .dots span:nth-child(2) { animation-delay: 0.16s; }
+    #loader .dots span:nth-child(3) { animation-delay: 0.32s; }
 
-    @keyframes foxBob {
-      0%, 100% { transform: translateY(0) rotate(-3deg); }
-      50%      { transform: translateY(-12px) rotate(3deg); }
-    }
     @keyframes dotPulse {
-      0%, 100% { opacity: 0.2; transform: translateY(0); }
-      50%      { opacity: 0.85; transform: translateY(-3px); }
+      0%, 100% { opacity: 0.25; transform: scale(0.72); }
+      50%      { opacity: 1;    transform: scale(1.18); }
+    }
+
+    /* Sweet entrance: the page rises and fades in as the cover lifts. */
+    .page {
+      transition: opacity 0.75s ease, transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    html.js-loading .page {
+      opacity: 0;
+      transform: translateY(20px);
     }
 
     @media (prefers-reduced-motion: reduce) {
-      #loader { transition: none; }
-      #loader .fox { animation: none; }
-      #loader .dots span { animation: none; opacity: 0.5; }
+      #loader,
+      #loader.is-done,
+      #loader.is-done .loader-art { transition: none; transform: none; }
+      #loader .dots span { animation: none; opacity: 0.6; }
+      .page { transition: none; }
+      html.js-loading .page { opacity: 1; transform: none; }
     }
   </style>
 
@@ -239,7 +242,6 @@
 <body>
   <div id="loader" aria-hidden="true">
     <div class="loader-art">
-      <div class="fox">🦊</div>
       <div class="dots"><span></span><span></span><span></span></div>
     </div>
   </div>
@@ -247,6 +249,7 @@
     (function () {
       var loader = document.getElementById("loader");
       if (!loader) return;
+      document.documentElement.classList.add("js-loading"); // hold the page for its entrance
 
       var KEY = "holeyfox:kiya-cached";
       var MIN_LOADER = 3000; // first-visit floor: keep the loader up at least this long
@@ -262,6 +265,7 @@
         if (revealed) return;
         revealed = true;
         remember();
+        document.documentElement.classList.remove("js-loading"); // let the page rise in
         loader.classList.add("is-done");
         window.setTimeout(function () {
           if (loader.parentNode) loader.parentNode.removeChild(loader);
