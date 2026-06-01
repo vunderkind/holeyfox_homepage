@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Justin Irabor — The Holey Fox</title>
+  <meta name="description" content="Justin Irabor, the Holey Fox. Thinker and tinkerer. Orchestrating agents and forming a theory of building for the new age." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>" />
+  <link rel="preload" href="KiyaHandwrite.woff2" as="font" type="font/woff2" crossorigin />
+
+  <style>
+    @font-face {
+      font-family: "Kiya Handwrite";
+      src: url("KiyaHandwrite.woff2") format("woff2"),
+           url("KiyaHandwrite.woff") format("woff");
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      --ink: #000000;
+      --bg: #ffffff;
+      --green: #1a8f3c;
+      --green-hover: #14702f;
+      --red: #d62828;
+      --measure: 60rem;
+    }
+
+    *,
+    *::before,
+    *::after { box-sizing: border-box; }
+
+    html { font-size: 100%; overflow-x: hidden; }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Kiya Handwrite", "Comic Sans MS", cursive;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      word-spacing: 0.08em;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      display: flex;
+      /* Sideways drift always sails off-screen cleanly (no h-scroll). */
+      overflow-x: hidden;
+    }
+
+    /* Tall-enough viewports hold the whole page, so clip the vertical drift
+       too and let words vanish "out to sea". Shorter viewports keep vertical
+       scroll as a safety valve so no content is ever clipped out of reach. */
+    @media (min-height: 560px) {
+      body { overflow-y: hidden; }
+    }
+
+    .page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: var(--measure);
+      min-height: 100svh;
+      margin: 0 auto;
+      padding: clamp(1.4rem, 3.5vh, 2.6rem) clamp(1.25rem, 5vw, 3rem);
+      text-align: center;
+    }
+
+    a {
+      color: var(--green);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    a:hover,
+    a:focus-visible { color: var(--green-hover); }
+
+    a:focus-visible { outline: 2px dotted var(--green); outline-offset: 0.3em; }
+
+    /* Each word is wrapped at runtime so it can drift independently. */
+    .word {
+      display: inline-block;
+      will-change: transform;
+    }
+
+    /* Top navigation */
+    .nav {
+      font-size: clamp(0.85rem, 0.6vw + 0.66rem, 1.1rem);
+      line-height: 1.7;
+      text-wrap: balance;
+    }
+
+    .nav .sep {
+      color: var(--ink);
+      margin: 0 0.15em;
+      opacity: 0.85;
+    }
+
+    /* Vertically-centered middle so the page sits above the fold */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* Name + tagline + bio */
+    .intro { margin: 0; }
+
+    .name {
+      margin: 0;
+      font-size: clamp(1.25rem, 0.9vw + 0.95rem, 1.75rem);
+      font-weight: normal;
+      text-wrap: balance;
+    }
+
+    .tagline {
+      margin: clamp(0.6rem, 1.6vh, 1.05rem) auto 0;
+      max-width: 40ch;
+      font-size: clamp(1rem, 0.7vw + 0.8rem, 1.35rem);
+      text-wrap: balance;
+    }
+
+    .bio {
+      margin: clamp(0.5rem, 1.3vh, 0.9rem) auto 0;
+      max-width: 34ch;
+      font-size: clamp(0.95rem, 0.65vw + 0.78rem, 1.28rem);
+      text-wrap: balance;
+    }
+
+    /* LOOM and "Humans in the Loop" in red; the rest of the bio stays ink. */
+    .hl { color: var(--red); }
+
+    /* Sections */
+    .block { margin-top: clamp(1.5rem, 4.2vh, 3.1rem); }
+
+    .block h2 {
+      margin: 0 0 clamp(0.7rem, 1.8vh, 1.3rem);
+      font-size: clamp(1.2rem, 0.9vw + 0.92rem, 1.7rem);
+      font-weight: normal;
+      text-wrap: balance;
+    }
+
+    .links {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: clamp(0.9rem, 0.45vw + 0.74rem, 1.18rem);
+    }
+
+    .links li {
+      margin-bottom: clamp(0.55rem, 1.5vh, 1.05rem);
+      text-wrap: balance;
+    }
+    .links li:last-child { margin-bottom: 0; }
+
+    /* Footer credit */
+    .credit {
+      margin-top: auto;
+      padding-top: clamp(1.5rem, 4vh, 3rem);
+      font-size: clamp(0.8rem, 0.5vw + 0.6rem, 1rem);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="nav" aria-label="Social links">
+      <a href="https://gist.holeyfox.co" target="_blank" rel="noopener noreferrer">Blog</a> <span class="sep">—</span> <a href="https://craftoverflow.substack.com" target="_blank" rel="noopener noreferrer">Substack</a> <span class="sep">—</span> <a href="https://github.com/vunderkind" target="_blank" rel="noopener noreferrer">GitHub</a> <span class="sep">—</span> <a href="https://threads.com/@thevunderkind" target="_blank" rel="noopener noreferrer">Threads</a> <span class="sep">—</span> <a href="https://de.linkedin.com/in/justinirabor/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+    </nav>
+
+    <main class="content">
+      <header class="intro">
+        <h1 class="name">Justin Irabor, the Holey Fox</h1>
+        <p class="tagline">Thinker and tinkerer. Orchestrating agents and forming a theory of building for the new age.</p>
+        <p class="bio">Building <span class="hl">LOOM</span> at <span class="hl">Humans in the Loop</span> with friends :)</p>
+      </header>
+
+      <section class="block" aria-labelledby="projects-heading">
+        <h2 id="projects-heading">Projects</h2>
+        <ul class="links">
+          <li><a href="https://xylemic.pages.dev" target="_blank" rel="noopener noreferrer">A living archive of my tweets and Substack</a></li>
+          <li><a href="http://bankai.holeyfox.co/" target="_blank" rel="noopener noreferrer">My open-source learning management system</a></li>
+        </ul>
+      </section>
+
+      <section class="block" aria-labelledby="talks-heading">
+        <h2 id="talks-heading">Talks</h2>
+        <ul class="links">
+          <li><a href="https://www.youtube.com/watch?v=iwAQ_XmD24o" target="_blank" rel="noopener noreferrer">How to develop intuition about AI agents</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="credit">
+      This website was built by Claude, and designed by Justin Irabor.
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var page = document.querySelector(".page");
+      if (!page) return;
+
+      // Wrap every visible word in its own .word span, preserving whitespace.
+      var walker = document.createTreeWalker(page, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (node) {
+          return node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        }
+      });
+      var textNodes = [];
+      while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+      textNodes.forEach(function (node) {
+        var frag = document.createDocumentFragment();
+        node.nodeValue.split(/(\s+)/).forEach(function (part) {
+          if (!part) return;
+          if (/^\s+$/.test(part)) {
+            frag.appendChild(document.createTextNode(part));
+          } else {
+            var span = document.createElement("span");
+            span.className = "word";
+            span.textContent = part;
+            frag.appendChild(span);
+          }
+        });
+        node.parentNode.replaceChild(frag, node);
+      });
+
+      // Honor reduced-motion: words are wrapped but left perfectly still.
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      var rand = function (a, b) { return a + Math.random() * (b - a); };
+
+      var W = Array.prototype.map.call(page.querySelectorAll(".word"), function (el) {
+        var r = el.getBoundingClientRect();
+        return {
+          el: el,
+          // gentle bob: a wave travelling across the page, plus per-word offset
+          bobPhase: r.left * 0.012 + rand(-0.6, 0.6),
+          bobOmega: rand(1.05, 1.45),
+          bobAmp: rand(2.2, 4.2),
+          swayPhase: rand(0, 6.283),
+          swayOmega: rand(0.5, 0.9),
+          swayAmp: rand(1.2, 2.6),
+          // drift toward entropy
+          driftAng: rand(0, 6.283),
+          driftSpeed: rand(0.45, 1.25),
+          spin: rand(-0.45, 0.45),
+          // chaotic jitter seeds
+          ja: rand(0, 6.283), jb: rand(0, 6.283), jc: rand(0, 6.283), jd: rand(0, 6.283)
+        };
+      });
+
+      var T0 = 58;    // seconds of calm before the drift becomes apparent
+      var C = 0.35;   // quadratic drift growth — accelerates as time passes
+      var start = null;
+
+      function frame(now) {
+        if (start === null) start = now;
+        var t = (now - start) / 1000;
+        var e = Math.max(0, t - T0);                  // time spent drifting
+        var choppy = 1 + Math.min(e, 45) * 0.05;      // seas roughen over time
+        var jitter = Math.max(0, e - 4) * 0.42;       // motion turns erratic
+
+        for (var i = 0; i < W.length; i++) {
+          var w = W[i];
+          var bob = w.bobAmp * choppy * Math.sin(t * w.bobOmega + w.bobPhase);
+          var sway = w.swayAmp * choppy * Math.sin(t * w.swayOmega + w.swayPhase);
+
+          var driftMag = C * w.driftSpeed * e * e;
+          var dx = Math.cos(w.driftAng) * driftMag;
+          var dy = Math.sin(w.driftAng) * driftMag;
+
+          var jx = jitter * (Math.sin(t * 1.7 + w.ja) + 0.5 * Math.sin(t * 3.1 + w.jb));
+          var jy = jitter * (Math.cos(t * 1.3 + w.jc) + 0.5 * Math.cos(t * 2.7 + w.jd));
+
+          var rot = w.spin * e + 0.6 * Math.sin(t * w.bobOmega + w.bobPhase);
+
+          w.el.style.transform =
+            "translate3d(" + (sway + dx + jx).toFixed(2) + "px," +
+            (bob + dy + jy).toFixed(2) + "px,0) rotate(" + rot.toFixed(2) + "deg)";
+
+          var dist = Math.abs(dx) + Math.abs(dy);     // fade as words sail away
+          if (dist > 260) {
+            var op = 1 - (dist - 260) / 900;
+            w.el.style.opacity = op < 0 ? "0" : op.toFixed(3);
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
