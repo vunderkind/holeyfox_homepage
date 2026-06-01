@@ -404,66 +404,173 @@
       // Honor reduced-motion: words are wrapped but left perfectly still.
       if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+      // Only drift on viewports the CSS keeps whole (overflow clipped at >=560px
+      // tall). On shorter, scrolling layouts there is no fixed box to bounce in.
+      if (!(window.matchMedia && window.matchMedia("(min-height: 560px)").matches)) return;
+
       var rand = function (a, b) { return a + Math.random() * (b - a); };
 
-      var W = Array.prototype.map.call(page.querySelectorAll(".word"), function (el) {
-        var r = el.getBoundingClientRect();
+      // ── Tunables ──────────────────────────────────────────────────
+      var SCATTER = 60;  // ~1 min: the knee where words really begin to scatter
+      var RAMP = 16;     // seconds from the knee up to full cruising speed
+      var PRE = 0.024;   // pre-scatter speed (fraction of CRUISE): a slow, legible wander
+      var CRUISE = 66;   // px/s base cruising speed at full ramp (× per-word)
+      var MARGIN = 6;    // keep words this many px inside the glass
+      var RET_DUR = 1.1; // seconds for the satisfying return-home tween
+
+      var words = Array.prototype.map.call(page.querySelectorAll(".word"), function (el) {
+        var ang = rand(0, 6.283);
         return {
           el: el,
-          // gentle bob: a wave travelling across the page, plus per-word offset
-          bobPhase: r.left * 0.012 + rand(-0.6, 0.6),
-          bobOmega: rand(1.05, 1.45),
-          bobAmp: rand(2.2, 4.2),
-          swayPhase: rand(0, 6.283),
-          swayOmega: rand(0.5, 0.9),
-          swayAmp: rand(1.2, 2.6),
-          // drift toward entropy
-          driftAng: rand(0, 6.283),
-          driftSpeed: rand(0.45, 1.25),
-          spin: rand(-0.45, 0.45),
-          // chaotic jitter seeds
-          ja: rand(0, 6.283), jb: rand(0, 6.283), jc: rand(0, 6.283), jd: rand(0, 6.283)
+          // bounce box for the drift offset (filled by measure())
+          loX: 0, hiX: 0, loY: 0, hiY: 0,
+          // integrated drift offset + unit heading (heading flips at walls)
+          x: 0, y: 0, dirX: Math.cos(ang), dirY: Math.sin(ang),
+          speed: rand(0.5, 1.25),
+          // gentle "alive" handwriting oscillation
+          bobPhase: rand(0, 6.283), bobOmega: rand(1.05, 1.45), bobAmp: rand(2.0, 3.8),
+          swayPhase: rand(0, 6.283), swayOmega: rand(0.5, 0.9), swayAmp: rand(1.2, 2.4),
+          tiltPhase: rand(0, 6.283), tiltOmega: rand(0.6, 1.0),
+          // last rendered transform, so a return can tween from exactly here
+          tx: 0, ty: 0, rot: 0, fromX: 0, fromY: 0, fromRot: 0
         };
       });
 
-      var T0 = 58;    // seconds of calm before the drift becomes apparent
-      var C = 0.35;   // quadratic drift growth — accelerates as time passes
-      var start = null;
+      // Measure each word's untransformed home rect and derive how far its
+      // drift offset may travel before the word's box touches the viewport.
+      function measure() {
+        for (var i = 0; i < words.length; i++) words[i].el.style.transform = "";
+        var vw = window.innerWidth, vh = window.innerHeight;
+        for (var j = 0; j < words.length; j++) {
+          var w = words[j], r = w.el.getBoundingClientRect();
+          var loX = MARGIN - r.left, hiX = vw - MARGIN - r.right;
+          var loY = MARGIN - r.top,  hiY = vh - MARGIN - r.bottom;
+          if (hiX < loX) loX = hiX = (loX + hiX) / 2; // word wider than its lane
+          if (hiY < loY) loY = hiY = (loY + hiY) / 2;
+          w.loX = loX; w.hiX = hiX; w.loY = loY; w.hiY = hiY;
+        }
+      }
+      measure();
+
+      // One continuous curve: a slow, eased wander for the first minute, then
+      // the knee at SCATTER opens up to full cruising speed over RAMP.
+      function speedAt(t) {
+        if (t <= 0) return 0;
+        if (t < SCATTER) {
+          var a = t / SCATTER;              // 0 → 1 across the first minute
+          return CRUISE * PRE * a;          // gentle, legible drift (speed eases up from 0)
+        }
+        var b = (t - SCATTER) / RAMP; if (b > 1) b = 1;
+        var eb = b < 0.5 ? 2 * b * b : 1 - Math.pow(-2 * b + 2, 2) / 2; // easeInOut
+        return CRUISE * (PRE + (1 - PRE) * eb);
+      }
+
+      // Slight overshoot past home, then settle — a springy, satisfying landing.
+      function easeOutBack(p) {
+        var c1 = 1.70158, c3 = c1 + 1;
+        return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2);
+      }
+
+      var startT = null, prev = null;
+      var returning = false, retStart = 0;
+
+      function beginReturn() {
+        if (returning) return;
+        returning = true;
+        retStart = performance.now();
+        for (var i = 0; i < words.length; i++) {
+          var w = words[i];
+          w.fromX = w.tx; w.fromY = w.ty; w.fromRot = w.rot;
+        }
+      }
+
+      function write(w, tx, ty, rot) {
+        w.tx = tx; w.ty = ty; w.rot = rot;
+        w.el.style.transform =
+          "translate3d(" + tx.toFixed(2) + "px," + ty.toFixed(2) + "px,0) rotate(" + rot.toFixed(2) + "deg)";
+      }
 
       function frame(now) {
-        if (start === null) start = now;
-        var t = (now - start) / 1000;
-        var e = Math.max(0, t - T0);                  // time spent drifting
-        var choppy = 1 + Math.min(e, 45) * 0.05;      // seas roughen over time
-        var jitter = Math.max(0, e - 4) * 0.42;       // motion turns erratic
+        if (startT === null) { startT = now; prev = now; }
+        var dt = (now - prev) / 1000; prev = now;
+        if (dt > 0.05) dt = 0.05;                 // clamp the jump after a tab-away
+        var t = (now - startT) / 1000;
 
-        for (var i = 0; i < W.length; i++) {
-          var w = W[i];
-          var bob = w.bobAmp * choppy * Math.sin(t * w.bobOmega + w.bobPhase);
-          var sway = w.swayAmp * choppy * Math.sin(t * w.swayOmega + w.swayPhase);
-
-          var driftMag = C * w.driftSpeed * e * e;
-          var dx = Math.cos(w.driftAng) * driftMag;
-          var dy = Math.sin(w.driftAng) * driftMag;
-
-          var jx = jitter * (Math.sin(t * 1.7 + w.ja) + 0.5 * Math.sin(t * 3.1 + w.jb));
-          var jy = jitter * (Math.cos(t * 1.3 + w.jc) + 0.5 * Math.cos(t * 2.7 + w.jd));
-
-          var rot = w.spin * e + 0.6 * Math.sin(t * w.bobOmega + w.bobPhase);
-
-          w.el.style.transform =
-            "translate3d(" + (sway + dx + jx).toFixed(2) + "px," +
-            (bob + dy + jy).toFixed(2) + "px,0) rotate(" + rot.toFixed(2) + "deg)";
-
-          var dist = Math.abs(dx) + Math.abs(dy);     // fade as words sail away
-          if (dist > 260) {
-            var op = 1 - (dist - 260) / 900;
-            w.el.style.opacity = op < 0 ? "0" : op.toFixed(3);
+        if (returning) {
+          var p = (now - retStart) / 1000 / RET_DUR;
+          if (p >= 1) {                            // landed: rest at home, recalm
+            p = 1; returning = false; startT = now;
+            for (var a = 0; a < words.length; a++) { words[a].x = 0; words[a].y = 0; }
           }
+          var k = 1 - easeOutBack(p);              // 1 → ~0 (with a little spring)
+          for (var i = 0; i < words.length; i++) {
+            var w = words[i];
+            write(w, w.fromX * k, w.fromY * k, w.fromRot * k);
+          }
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        var s = speedAt(t);
+        var choppy = 1 + (s / CRUISE) * 0.6;        // wobble loosens further as it scatters
+        for (var n = 0; n < words.length; n++) {
+          var w = words[n];
+
+          // Integrate the drift and reflect the heading off each wall.
+          w.x += w.dirX * s * dt;
+          w.y += w.dirY * s * dt;
+          if (w.x <= w.loX) { w.x = w.loX; w.dirX = Math.abs(w.dirX); }
+          else if (w.x >= w.hiX) { w.x = w.hiX; w.dirX = -Math.abs(w.dirX); }
+          if (w.y <= w.loY) { w.y = w.loY; w.dirY = Math.abs(w.dirY); }
+          else if (w.y >= w.hiY) { w.y = w.hiY; w.dirY = -Math.abs(w.dirY); }
+
+          var sway = w.swayAmp * choppy * Math.sin(t * w.swayOmega + w.swayPhase);
+          var bob = w.bobAmp * choppy * Math.sin(t * w.bobOmega + w.bobPhase);
+          var tilt = 2.2 * choppy * Math.sin(t * w.tiltOmega + w.tiltPhase) + w.dirX * s * 0.03;
+
+          var tx = w.x + sway, ty = w.y + bob;     // keep oscillation inside the glass too
+          if (tx < w.loX) tx = w.loX; else if (tx > w.hiX) tx = w.hiX;
+          if (ty < w.loY) ty = w.loY; else if (ty > w.hiY) ty = w.hiY;
+
+          write(w, tx, ty, tilt);
         }
         requestAnimationFrame(frame);
       }
       requestAnimationFrame(frame);
+
+      // Any key, or a deliberate mouse shake, calls every word home.
+      window.addEventListener("keydown", function () { beginReturn(); });
+
+      var lastX = null, lastDir = 0, reversals = [];
+      window.addEventListener("mousemove", function (ev) {
+        var now = performance.now();
+        if (lastX !== null) {
+          var dx = ev.clientX - lastX;
+          if (Math.abs(dx) > 6) {
+            var dir = dx > 0 ? 1 : -1;
+            if (lastDir !== 0 && dir !== lastDir) reversals.push(now);
+            lastDir = dir;
+          }
+        }
+        lastX = ev.clientX;
+        var cutoff = now - 650;
+        while (reversals.length && reversals[0] < cutoff) reversals.shift();
+        if (reversals.length >= 4) { reversals.length = 0; beginReturn(); }
+      });
+
+      // On resize the home rects move, so settle home and re-measure the box.
+      var rT;
+      window.addEventListener("resize", function () {
+        clearTimeout(rT);
+        rT = setTimeout(function () {
+          returning = false;
+          for (var i = 0; i < words.length; i++) {
+            var w = words[i]; w.x = 0; w.y = 0; w.tx = 0; w.ty = 0; w.rot = 0;
+          }
+          measure();
+          startT = null;                            // frame() re-inits the clock
+        }, 200);
+      });
     })();
   </script>
 </body>
